@@ -21,6 +21,13 @@ func gpgKeyUpload(httpClient *http.Client, hostname string, keyFile io.Reader) e
 		return err
 	}
 
+	// 36 bytes is the length of armored GPG key header
+	buf := make([]byte, 36)
+	copy(buf, keyBytes)
+	if !isGpgKeyArmored(buf) {
+		return errors.New("only ASCII-armored GPG keys are supported")
+	}
+
 	payload := map[string]string{
 		"armored_public_key": string(keyBytes),
 	}
@@ -71,4 +78,8 @@ func isDuplicateError(err *api.HTTPError) bool {
 func isKeyInvalidError(err *api.HTTPError) bool {
 	return err.StatusCode == 422 && len(err.Errors) == 1 &&
 		err.Errors[0].Field == "" && err.Errors[0].Message == "We got an error doing that."
+}
+
+func isGpgKeyArmored(buf []byte) bool {
+	return bytes.Equal(buf, []byte("-----BEGIN PGP PUBLIC KEY BLOCK-----"))
 }
