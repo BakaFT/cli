@@ -14,6 +14,9 @@ import (
 var scopesError = errors.New("insufficient OAuth scopes")
 
 func gpgKeyUpload(httpClient *http.Client, hostname string, keyFile io.Reader) error {
+	if !isGpgKeyArmored(keyFile) {
+		return errors.New("invalid GPG key")
+	}
 	url := ghinstance.RESTPrefix(hostname) + "user/gpg_keys"
 
 	keyBytes, err := io.ReadAll(keyFile)
@@ -41,6 +44,10 @@ func gpgKeyUpload(httpClient *http.Client, hostname string, keyFile io.Reader) e
 	}
 	defer resp.Body.Close()
 
+	// body, _ := io.ReadAll(resp.Body)
+
+	// fmt.Println(string(body))
+
 	if resp.StatusCode == 404 {
 		return scopesError
 	} else if resp.StatusCode > 299 {
@@ -63,4 +70,14 @@ func gpgKeyUpload(httpClient *http.Client, hostname string, keyFile io.Reader) e
 func isDuplicateError(err *api.HTTPError) bool {
 	return err.StatusCode == 422 && len(err.Errors) == 2 &&
 		err.Errors[0].Field == "key_id" && err.Errors[0].Message == "key_id already exists"
+}
+
+func isGpgKeyArmored(keyFile io.Reader) bool {
+	buf := make([]byte, 36)
+	_, err := keyFile.Read(buf)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(buf, []byte("-----BEGIN PGP PUBLIC KEY BLOCK-----"))
+
 }
