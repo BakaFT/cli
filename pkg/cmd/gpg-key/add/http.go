@@ -49,6 +49,9 @@ func gpgKeyUpload(httpClient *http.Client, hostname string, keyFile io.Reader) e
 		if errors.As(err, &httpError) && isDuplicateError(&httpError) {
 			return nil
 		}
+		if errors.As(err, &httpError) && isKeyInvalidError(&httpError) {
+			return errors.New("invalid GPG key")
+		}
 		return err
 	}
 
@@ -63,4 +66,9 @@ func gpgKeyUpload(httpClient *http.Client, hostname string, keyFile io.Reader) e
 func isDuplicateError(err *api.HTTPError) bool {
 	return err.StatusCode == 422 && len(err.Errors) == 2 &&
 		err.Errors[0].Field == "key_id" && err.Errors[0].Message == "key_id already exists"
+}
+
+func isKeyInvalidError(err *api.HTTPError) bool {
+	return err.StatusCode == 422 && len(err.Errors) == 1 &&
+		err.Errors[0].Field == "" && err.Errors[0].Message == "We got an error doing that."
 }
